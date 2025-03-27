@@ -51,11 +51,26 @@ class biGramLanguageModel(nn.Module):
             loss = F.cross_entropy(logits, targets)
         return logits, loss
 
+    def generate(self, idx, max_new_tokens):    
+        #idx is (1,1) initially
+        for _ in range(max_new_tokens):
+            idx_curr  = idx[:,-1*block_size:] #(1,T)
+            logits, _ = self(idx_curr) # (1,T,vocab_size)
+            logits = logits[:, -1, :] # (1,vocab_size)
+            probs = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx = torch.cat((idx, idx_next), dim=-1)
+            
+        return idx
+
 #Model setup
 model = biGramLanguageModel(vocab_size)
 model = model.to(device)
 
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+
+#Test loop
+
 
 #Training loop
 for iter in range(max_iters):
@@ -67,3 +82,6 @@ for iter in range(max_iters):
     if(iter % 100 == 0):
         print(f"iter {iter}: loss {loss.item()}")       
 
+#Generate
+context = torch.zeros((1,1), device=device, dtype=torch.long)
+print(decode(model.generate(context, max_new_tokens=500)[0].tolist()))
